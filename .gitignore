@@ -1,0 +1,5 @@
+results/*.csv
+figures/*.png
+
+*/.Rhistory
+.Rhistory

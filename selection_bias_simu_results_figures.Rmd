@@ -1,0 +1,341 @@
+---
+title: "selection_bias_simu_results_figures"
+author: "Chen Chen"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(data.table)
+library(knitr)
+library(RColorBrewer)
+library(ggplot2)
+indir <- "~/non_participating_bias"
+options(scipen=999)
+```
+
+These are the codes to summarize simulation results to create figures and tables for the differential participation bias paper. Simulation process are included in "differential_participation_bias_simulation.R".       
+
+## Geographical factor driven
+```{r, echo=TRUE}
+n.rep <- 100
+yr <- 10                            # study period: 10 years
+n.size <- "1e+05"			    # sample size, 10k takes 100s, 100k takes 35 mins
+delta <- 1                       # simulation interval: 1 month = 1/12 year
+washout <- 3  ## washout years dropped in analysis
+ana.yrs <- c(yr, 5, 3, 2)
+ana.yrs.w <- c(yr-washout, 5, 3, 2)
+
+type <- "rural_intvs_real"
+rural_coef <- c(mean = 0.55, r_x = -6, r_f = 0, r_h = 0, r_s = 0.6)
+x_coef <- c(base = 7.4, x_f = 0, x_h = 0.0002, x_s = 0) ## exposure
+f_coef <- c(base = 0.5, f_h = 0.003, f_s = -0.45, f_year=3) ## frailty
+h_coef <- c(base = 0.006) #hazard for death
+s_coef <- c(base = 0.7, cut = 0.3) #probability of being selected
+
+
+dataset <- paste0(type, "_", n.rep, "cohorts_", n.size, "size_", washout, "years")
+print(dataset)
+```
+
+
+```{r}
+foo <- read.csv(file.path(indir, "results", paste0(dataset, ".csv")))
+
+loc.cox.full <- grep("cox.target", names(foo))
+loc.cox.rel <- grep("cox.reldif", names(foo))
+cox.nm <- gsub("reldif", "dif", names(foo)[loc.cox.rel])
+foo[, cox.nm] <- foo[, loc.cox.rel] * foo[, loc.cox.full]
+est <- apply(foo[,c(4, 7:ncol(foo))], 2, mean)
+qt <- apply(foo[,c(4, 7:ncol(foo))], 2, quantile, probs=c(0.025, 0.975))
+sd <- apply(foo[,c(4, 7:ncol(foo))], 2, sd)
+ll <- est - 1.96*sd
+ul <- est + 1.96*sd
+
+
+colr.line <- brewer.pal(n = 3, name = "YlOrRd")[-c(1, 2)]
+colr.pol <- rgb(t(col2rgb(colr.line)), alpha=255*0.4, maxColorValue = 255)
+colr.line2 <- brewer.pal(n = 3, name = "Blues")[-c(1, 2)]
+colr.pol2 <- rgb(t(col2rgb(colr.line2)), alpha=255*0.5, maxColorValue = 255)
+
+loc <- grep("gcomp", names(est))
+est[loc] <- -est[loc]
+ll[loc] <- -ll[loc]
+ul[loc] <- -ul[loc]
+ylim <- c(min(c(0, ll[loc], ul[loc]))*0.95, 
+              max(c(0, ll[loc], ul[loc]))*1.05)
+
+loc.g <- grep("full_original_gcomp", names(est))
+loc.gw <- grep("selected_original_gcomp", names(est))
+# png(file.path("figures", paste0("figure2e.png")),
+# # png(file.path("figures", paste0("figure2e_Naive_SC_", dataset, ".png")),
+#      width=7, height=5, units="in", res = 600, bg="white", family="sans", pointsize=16)
+plot(0:10, c(0, est[loc.g]), type = "o", 
+     ylim = ylim,
+     family = "sans", main = "Simulation (geographical) - Naive", 
+     ylab = "Difference in survival probability", xlab = "Follow-up year",
+     col = colr.line, lwd=4, pch=16, cex.lab=1.5, cex.main=1.5, cex.axis =1.5)
+polygon(c(rev(0:10), 0:10),
+        c(rev(c(0, ll[loc.g])), c(0, ul[loc.g])),
+        col = colr.pol, border = NA)
+abline(h=0, lwd=2, lty=2, col = "black")
+lines(0:10, c(0, est[loc.gw]), type = "o", col = colr.line2, lwd=4, pch=17)
+polygon(c(rev(0:10), 0:10),
+        c(rev(c(0, ll[loc.gw])), c(0, ul[loc.gw])),
+        col = colr.pol2, border = NA)
+abline(h=0, lwd=2, lty=2, col = colr.line2)
+legend("topright", legend=c("Full", "Observed"), pch = 16:17, col=c(colr.line, colr.line2), xpd=T, lwd = 3)
+# dev.off()
+
+loc.g <- grep("full_washout_gcomp", names(est))
+loc.gw <- grep("selected_washout_gcomp", names(est))
+# png(file.path("figures", paste0("figure2f.png")),
+# # png(file.path("figures", paste0("figure2f_Washout_SC_", dataset, ".png")),
+#      width=7, height=5, units="in", res = 600, bg="white", family="sans", pointsize=16)
+plot(washout:10, c(0, est[loc.g]), type = "o", 
+     ylim = ylim,
+     family = "sans", main = "Simulation (geographical) - Washout", 
+     ylab = "Difference in survival probability", xlab = "Follow-up year",
+     col = colr.line, lwd=4, pch=16, cex.lab=1.5, cex.main=1.5, cex.axis =1.5)
+polygon(c(rev(washout:10), washout:10),
+        c(rev(c(0, ll[loc.g])), c(0, ul[loc.g])),
+        col = colr.pol, border = NA)
+abline(h=0, lwd=2, lty=2, col = "black")
+lines(washout:10, c(0, est[loc.gw]), type = "o", col = colr.line2, lwd=4, pch=17)
+polygon(c(rev(washout:10), washout:10),
+        c(rev(c(0, ll[loc.gw])), c(0, ul[loc.gw])),
+        col = colr.pol2, border = NA)
+abline(h=0, lwd=2, lty=2, col = colr.line2)
+legend("topright", legend=c("Full", "Observed"), pch = 16:17, col=c(colr.line, colr.line2), xpd=T, lwd = 3)
+# dev.off()
+```
+
+```{r}
+out <- data.frame(est=est, sd=sd, ll=ll, ul=ul, qt_ll=qt[1, ], qt_ul=qt[2, ], nm=names(est))
+loc.aa <- grep("aa|cox", out$nm)
+out <- out[loc.aa, ]
+temp <- matrix(unlist(strsplit(out$nm, split="_")), ncol=2, byrow=TRUE)
+temp1 <- matrix(unlist(strsplit(temp[,2], split="[.]")), ncol=3, byrow=TRUE)
+out$followup <- temp1[, 3]
+out$parameter <- temp1[, 2]
+out$model <- temp1[, 1]
+out$intervention <- temp[, 1]
+
+out <- out[order(out$model), ]
+out <- out[order(out$followup), ]
+out <- out[order(out$intervention), ]
+row.names(out) <- NULL
+
+out$followup <- ifelse(out$followup=="all" & out$intervention=="original", 10, out$followup)
+out$followup <- ifelse(out$followup=="all" & out$intervention=="washout", 7, out$followup)
+
+cap1 <- paste0("Aboslute bias estimates (*10^-3) for", dataset, "\n")
+out$estimate <- paste0(round(out$est*1000, digits = 2), " (", round(out$ll*1000, digits = 2), ", ", round(out$ul*1000, digits = 2), ")")
+kable(out[out$parameter=="dif" & out$followup!=2, c("intervention", "model", "followup", "parameter", "estimate")], caption=cap1)
+
+cap2 <- paste0("Relative bias estimates in percentage for", dataset, "\n")
+out$estimate_prct <- paste0(round(out$est*100, digits = 2), " (", round(out$ll*100, digits = 2), ", ", round(out$ul*100, digits = 2), ")")
+kable(out[out$parameter=="reldif" & out$followup!=2, c("intervention", "model", "followup", "parameter", "estimate_prct")], caption=cap2)
+
+cap3 <- paste0("Estimates (*10^-3) from Aalen for", dataset, "\n")
+out$estimate <- paste0(round(out$est*1000, digits = 2), " (", round(out$ll*1000, digits = 2), ", ", round(out$ul*1000, digits = 2), ")")
+kable(out[out$parameter %in% c("target", "selected") & out$model=="aa" & out$followup!=2, c("intervention", "model", "followup", "parameter", "estimate")], caption=cap3)
+
+cap4 <- paste0("Estimates from Cox for", dataset, "\n")
+out$estimate <- paste0(round(out$est, digits = 2), " (", round(out$ll, digits = 2), ", ", round(out$ul, digits = 2), ")")
+kable(out[out$parameter %in% c("target", "selected") & out$model=="cox" & out$followup!=2, c("intervention", "model", "followup", "parameter", "estimate")], caption=cap4)
+
+```
+
+
+## Frailty driven
+```{r, echo=TRUE}
+n.rep <- 100
+yr <- 10                            # study period: 10 years
+n.size <- "1e+05"			    # sample size, 10k takes 100s, 100k takes 35 mins
+delta <- 1                       # simulation interval: 1 month = 1/12 year
+washout <- 3  ## washout years dropped in analysis
+ana.yrs <- c(yr, 5, 3, 2)
+ana.yrs.w <- c(yr-washout, 5, 3, 2)
+
+type <- "frail_intvs_real"
+age_coef <- c(mean = 48, a_x = 0, a_h = 0)
+rural_coef <- c(mean = 0.55, r_x = 0, r_h = 0, r_s = 0)
+x_coef <- c(base = 7.4, x_h = 0.0002, x_s = 0) #exposure, x_coef["x_hs"] decides whether exposure affects selection through frailty (binary)
+u_coef <- c(mean = 0.8, u_h = 0.003, u_year=3) #unmeasured risk factor for death--no affecting hazards after u_year year, min value 0, max value 10
+h_coef <- c(base = 0.006, h_s = -10) #hazard for death
+s_coef <- c(base = 0.7, cut = 0.3) #probability of being selected
+
+dataset <- paste0(type, "_", n.rep, "cohorts_", n.size, "size_", washout, "years")
+print(dataset)
+```
+
+
+```{r}
+foo <- read.csv(file.path(indir, "results", paste0(dataset, ".csv")))
+
+loc.cox.full <- grep("cox.target", names(foo))
+loc.cox.rel <- grep("cox.reldif", names(foo))
+cox.nm <- gsub("reldif", "dif", names(foo)[loc.cox.rel])
+foo[, cox.nm] <- foo[, loc.cox.rel] * foo[, loc.cox.full]
+est <- apply(foo[,c(4, 7:ncol(foo))], 2, mean)
+qt <- apply(foo[,c(4, 7:ncol(foo))], 2, quantile, probs=c(0.025, 0.975))
+sd <- apply(foo[,c(4, 7:ncol(foo))], 2, sd)
+ll <- est - 1.96*sd
+ul <- est + 1.96*sd
+
+
+colr.line <- brewer.pal(n = 3, name = "YlOrRd")[-c(1, 2)]
+colr.pol <- rgb(t(col2rgb(colr.line)), alpha=255*0.4, maxColorValue = 255)
+colr.line2 <- brewer.pal(n = 3, name = "Blues")[-c(1, 2)]
+colr.pol2 <- rgb(t(col2rgb(colr.line2)), alpha=255*0.5, maxColorValue = 255)
+
+loc <- grep("gcomp", names(est))
+est[loc] <- -est[loc]
+ll[loc] <- -ll[loc]
+ul[loc] <- -ul[loc]
+ylim <- c(min(c(0, ll[loc], ul[loc]))*0.95, 
+              max(c(0, ll[loc], ul[loc]))*1.05)
+
+loc.g <- grep("full_original_gcomp", names(est))
+loc.gw <- grep("selected_original_gcomp", names(est))
+# png(file.path("figures", paste0("figure2c.png")),
+#      width=7, height=5, units="in", res = 600, bg="white", family="sans", pointsize=16)
+plot(0:10, c(0, est[loc.g]), type = "o", 
+     ylim=ylim,
+     family = "sans", main = "Simulation (frailty) - Naive", 
+     ylab = "Difference in survival probability", xlab = "Follow-up year",
+     col = colr.line, lwd=4, pch=16, cex.lab=1.5, cex.main=1.5, cex.axis =1.5)
+polygon(c(rev(0:10), 0:10),
+        c(rev(c(0, ll[loc.g])), c(0, ul[loc.g])),
+        col = colr.pol, border = NA)
+abline(h=0, lwd=2, lty=2, col = "black")
+lines(0:10, c(0, est[loc.gw]), type = "o", col = colr.line2, lwd=4, pch=17)
+polygon(c(rev(0:10), 0:10),
+        c(rev(c(0, ll[loc.gw])), c(0, ul[loc.gw])),
+        col = colr.pol2, border = NA)
+abline(h=0, lwd=2, lty=2, col = colr.line2)
+legend("topright", legend=c("Full", "Observed"), pch = 16:17, col=c(colr.line, colr.line2), xpd=T, lwd = 3)
+# dev.off()
+
+loc.g <- grep("full_washout_gcomp", names(est))
+loc.gw <- grep("selected_washout_gcomp", names(est))
+# png(file.path("figures", paste0("figure2d.png")),
+#      width=7, height=5, units="in", res = 600, bg="white", family="sans", pointsize=16)
+plot(washout:10, c(0, est[loc.g]), type = "o", 
+     ylim=ylim,
+     family = "sans", main = "Simulation (frailty) - Washout", 
+     ylab = "Difference in survival probability", xlab = "Follow-up year",
+     col = colr.line, lwd=4, pch=16, cex.lab=1.5, cex.main=1.5, cex.axis =1.5)
+polygon(c(rev(washout:10), washout:10),
+        c(rev(c(0, ll[loc.g])), c(0, ul[loc.g])),
+        col = colr.pol, border = NA)
+abline(h=0, lwd=2, lty=2, col = "black")
+lines(washout:10, c(0, est[loc.gw]), type = "o", col = colr.line2, lwd=4, pch=17)
+polygon(c(rev(washout:10), washout:10),
+        c(rev(c(0, ll[loc.gw])), c(0, ul[loc.gw])),
+        col = colr.pol2, border = NA)
+abline(h=0, lwd=2, lty=2, col = colr.line2)
+legend("topright", legend=c("Full", "Observed"), pch = 16:17, col=c(colr.line, colr.line2), xpd=T, lwd = 3)
+# dev.off()
+```
+
+```{r}
+out1 <- data.frame(est=est, sd=sd, ll=ll, ul=ul, qt_ll=qt[1, ], qt_ul=qt[2, ], nm=names(est))
+loc.aa <- grep("aa|cox", out1$nm)
+out1 <- out1[loc.aa, ]
+temp <- matrix(unlist(strsplit(out1$nm, split="_")), ncol=2, byrow=TRUE)
+temp1 <- matrix(unlist(strsplit(temp[,2], split="[.]")), ncol=3, byrow=TRUE)
+out1$followup <- temp1[, 3]
+out1$parameter <- temp1[, 2]
+out1$model <- temp1[, 1]
+out1$intervention <- temp[, 1]
+
+out1 <- out1[order(out1$model), ]
+out1 <- out1[order(out1$followup), ]
+out1 <- out1[order(out1$intervention), ]
+row.names(out1) <- NULL
+
+out1$followup <- ifelse(out1$followup=="all" & out1$intervention=="original", 10, out1$followup)
+out1$followup <- ifelse(out1$followup=="all" & out1$intervention=="washout", 7, out1$followup)
+
+cap1 <- paste0("Aboslute bias estimates (*10^-3) for", dataset, "\n")
+out1$estimate <- paste0(round(out1$est*1000, digits = 2), " (", round(out1$ll*1000, digits = 2), ", ", round(out1$ul*1000, digits = 2), ")")
+kable(out1[out1$parameter=="dif" & out1$followup!=2, c("intervention", "model", "followup", "parameter", "estimate")], caption=cap1)
+
+cap2 <- paste0("Relative bias estimates in percentage for", dataset, "\n")
+out1$estimate_prct <- paste0(round(out1$est*100, digits = 2), " (", round(out1$ll*100, digits = 2), ", ", round(out1$ul*100, digits = 2), ")")
+kable(out1[out1$parameter=="reldif" & out1$followup!=2, c("intervention", "model", "followup", "parameter", "estimate_prct")], caption=cap2)
+
+cap3 <- paste0("Estimates (*10^-3) from Aalen for", dataset, "\n")
+out1$estimate <- paste0(round(out1$est*1000, digits = 2), " (", round(out1$ll*1000, digits = 2), ", ", round(out1$ul*1000, digits = 2), ")")
+kable(out1[out1$parameter %in% c("target", "selected") & out1$model=="aa" & out1$followup!=2, c("intervention", "model", "followup", "parameter", "estimate")], caption=cap3)
+
+cap4 <- paste0("Estimates from Cox for", dataset, "\n")
+out1$estimate <- paste0(round(out1$est, digits = 2), " (", round(out1$ll, digits = 2), ", ", round(out1$ul, digits = 2), ")")
+kable(out1[out1$parameter %in% c("target", "selected") & out1$model=="cox" & out1$followup!=2, c("intervention", "model", "followup", "parameter", "estimate")], caption=cap4)
+```
+
+## Figures
+```{r}
+out$scenario <- "Geographical factor driven"
+out1$scenario <- "Frailty driven"
+bar <- rbind(out, out1)
+bar <- bar[bar$followup!=2, ]
+
+bar$model <- ifelse(bar$model=="aa", "Aalen model", "Cox model")
+bar$parameter <- gsub("target", "Full", bar$parameter)
+bar$parameter <- gsub("selected", "Observed", bar$parameter)
+bar$intervention <- gsub("original", "Naive", bar$intervention)
+bar$intervention <- gsub("washout", "Washout", bar$intervention)
+bar$followup <- gsub(10, "all", bar$followup)
+bar$followup <- gsub(7, "all", bar$followup)
+
+dodge <- position_dodge(width=0.5)
+# png(file.path(indir, "figures", "efigure3b_aalen_simulation.png"), width=7, height=5, units="in", res = 600, bg="white", family="sans", pointsize=16)
+ggplot(bar[bar$model=="Aalen model" & bar$parameter %in% c("Full", "Observed"), ], aes(y=est, x=followup, ymax=ul, ymin=ll, col=intervention, shape=intervention)) +
+    geom_hline(yintercept = 0, col="darkgrey", size=1.2) +
+    geom_point(position=dodge, size=3) + geom_errorbar(position=dodge, width=0.2, size=1.2) +
+    facet_grid(vars(parameter), vars(scenario)
+               # , scales = "free_y"
+               ) + 
+    scale_color_brewer(palette = "Set2") +
+    labs(title = "Simulation - Aalen model",
+         x="Follow-up years",
+         y= "Hazard difference") +
+    guides(col=guide_legend(title="Analysis"), shape =guide_legend(title="Analysis")) +
+    theme(text = element_text(size=16), plot.title = element_text(hjust = 0.5))
+# dev.off()
+
+# png(file.path(indir, "figures", "efigure3d_cox_simulation.png"), width=7, height=5, units="in", res = 600, bg="white", family="sans", pointsize=16)
+ggplot(bar[bar$model=="Cox model" & bar$parameter %in% c("Full", "Observed"), ], aes(y=est, x=followup, ymax=ul, ymin=ll, col=intervention, shape=intervention)) +
+    geom_hline(yintercept = 1, col="darkgrey", size=1.2) +
+    geom_point(position=dodge, size=3) + geom_errorbar(position=dodge, width=0.2, size=1.2) +
+    facet_grid(vars(parameter), vars(scenario)
+               # , scales = "free_y"
+               ) + 
+    scale_color_brewer(palette = "Set2") +
+    labs(title = "Simulation - Cox model",
+         x="Follow-up years",
+         y= "Hazard ratio") +
+    guides(col=guide_legend(title="Analysis"), shape =guide_legend(title="Analysis")) +
+    theme(text = element_text(size=16), plot.title = element_text(hjust = 0.5))
+# dev.off()
+
+bar$model <- ifelse(bar$model=="Aalen model", "Aalen-absolute", "Cox-relative")
+# png(file.path(indir, "figures", "figure3_bias_simulation.png"), width=7, height=5, units="in", res = 600, bg="white", family="sans", pointsize=16)
+ggplot(bar[(bar$parameter=="dif" & bar$model=="Aalen-absolute")| (bar$parameter=="reldif" & bar$model=="Cox-relative"), ], aes(y=est, x=followup, ymax=ul, ymin=ll, col=intervention, shape=intervention)) +
+    geom_hline(yintercept = 0, col="darkgrey", size=1.2) +
+    geom_point(position=dodge, size=3) + geom_errorbar(position=dodge, width=0.2, size=1.2) +
+    facet_grid(vars(model), vars(scenario), scales = "free_y") + 
+    scale_color_brewer(palette = "Set2") +
+    labs(title = "Simulation", x="Follow-up years",
+         y= "Bias") +
+    guides(col=guide_legend(title="Analysis"), shape =guide_legend(title="Analysis")) +
+    theme(text = element_text(size=16), plot.title = element_text(hjust = 0.5))
+# dev.off()
+```
+
+
+
