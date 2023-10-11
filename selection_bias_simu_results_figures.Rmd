@@ -93,17 +93,18 @@ loc.gw <- grep("selected_washout_gcomp", names(est))
 # png(file.path("figures", paste0("figure2f.png")),
 # # png(file.path("figures", paste0("figure2f_Washout_SC_", dataset, ".png")),
 #      width=7, height=5, units="in", res = 600, bg="white", family="sans", pointsize=16)
-plot(washout:10, c(0, est[loc.g]), type = "o", 
+wo.years <- 0:(10-washout)
+plot(wo.years, c(0, est[loc.g]), type = "o", 
      ylim = ylim,
      family = "sans", main = "Simulation (geographical) - Washout", 
      ylab = "Difference in survival probability", xlab = "Follow-up year",
      col = colr.line, lwd=4, pch=16, cex.lab=1.5, cex.main=1.5, cex.axis =1.5)
-polygon(c(rev(washout:10), washout:10),
+polygon(c(rev(wo.years), wo.years),
         c(rev(c(0, ll[loc.g])), c(0, ul[loc.g])),
         col = colr.pol, border = NA)
 abline(h=0, lwd=2, lty=2, col = "black")
-lines(washout:10, c(0, est[loc.gw]), type = "o", col = colr.line2, lwd=4, pch=17)
-polygon(c(rev(washout:10), washout:10),
+lines(wo.years, c(0, est[loc.gw]), type = "o", col = colr.line2, lwd=4, pch=17)
+polygon(c(rev(wo.years), wo.years),
         c(rev(c(0, ll[loc.gw])), c(0, ul[loc.gw])),
         col = colr.pol2, border = NA)
 abline(h=0, lwd=2, lty=2, col = colr.line2)
@@ -223,17 +224,18 @@ loc.g <- grep("full_washout_gcomp", names(est))
 loc.gw <- grep("selected_washout_gcomp", names(est))
 # png(file.path("figures", paste0("figure2d.png")),
 #      width=7, height=5, units="in", res = 600, bg="white", family="sans", pointsize=16)
-plot(washout:10, c(0, est[loc.g]), type = "o", 
+wo.years <- 0:(10-washout)
+plot(wo.years, c(0, est[loc.g]), type = "o", 
      ylim=ylim,
      family = "sans", main = "Simulation (frailty) - Washout", 
      ylab = "Difference in survival probability", xlab = "Follow-up year",
      col = colr.line, lwd=4, pch=16, cex.lab=1.5, cex.main=1.5, cex.axis =1.5)
-polygon(c(rev(washout:10), washout:10),
+polygon(c(rev(wo.years), wo.years),
         c(rev(c(0, ll[loc.g])), c(0, ul[loc.g])),
         col = colr.pol, border = NA)
 abline(h=0, lwd=2, lty=2, col = "black")
-lines(washout:10, c(0, est[loc.gw]), type = "o", col = colr.line2, lwd=4, pch=17)
-polygon(c(rev(washout:10), washout:10),
+lines(wo.years, c(0, est[loc.gw]), type = "o", col = colr.line2, lwd=4, pch=17)
+polygon(c(rev(wo.years), wo.years),
         c(rev(c(0, ll[loc.gw])), c(0, ul[loc.gw])),
         col = colr.pol2, border = NA)
 abline(h=0, lwd=2, lty=2, col = colr.line2)
